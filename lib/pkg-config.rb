@@ -490,14 +490,12 @@ class PackageConfig
 
   def variable(name)
     parse_pc if @variables.nil?
-    value = @override_variables[name]
-    value ||= builtin_variable(name)
-    expand_value(value || @variables[name])
+    expand_variable(name, {})
   end
 
   def declaration(name)
     parse_pc if @declarations.nil?
-    expand_value(@declarations[name])
+    expand_value(@declarations[name], {})
   end
 
   def pc_path
@@ -725,10 +723,24 @@ class PackageConfig
     variables
   end
 
-  def expand_value(value)
+  def expand_value(value, expanding={})
     return nil if value.nil?
     value.gsub(/\$\{(#{IDENTIFIER_RE})\}/) do
-      variable($1)
+      expand_variable($1, expanding)
+    end
+  end
+
+  def expand_variable(name, expanding)
+    return "" if expanding.key?(name)
+    value = @override_variables[name]
+    value ||= builtin_variable(name)
+    value ||= @variables[name]
+    return nil if value.nil?
+    expanding[name] = true
+    begin
+      expand_value(value, expanding)
+    ensure
+      expanding.delete(name)
     end
   end
 
