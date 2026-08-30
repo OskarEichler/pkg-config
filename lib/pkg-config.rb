@@ -490,7 +490,9 @@ class PackageConfig
 
   def variable(name)
     parse_pc if @variables.nil?
-    expand_value(@override_variables[name] || @variables[name])
+    value = @override_variables[name]
+    value ||= builtin_variable(name)
+    expand_value(value || @variables[name])
   end
 
   def declaration(name)
@@ -657,6 +659,25 @@ class PackageConfig
 
   def render_flags(flags)
     Shellwords.join(flags).gsub("\\=", "=")
+  end
+
+  def builtin_variable(name)
+    case name
+    when "pcfiledir"
+      apply_sysroot(File.dirname(File.expand_path(pc_path)))
+    when "pc_sysrootdir"
+      ENV.fetch("PKG_CONFIG_SYSROOT_DIR", "")
+    when "pc_top_builddir"
+      apply_sysroot(ENV.fetch("PKG_CONFIG_TOP_BUILD_DIR", "$(top_builddir)"))
+    end
+  end
+
+  def apply_sysroot(path)
+    sysroot = ENV["PKG_CONFIG_SYSROOT_DIR"]
+    return path if sysroot.nil? or sysroot.empty?
+    return path unless Pathname(path).absolute?
+    return path if path == sysroot or path.start_with?("#{sysroot}#{File::SEPARATOR}")
+    File.join(sysroot, path)
   end
 
   IDENTIFIER_RE = /[a-zA-Z\d_\.]+/
