@@ -443,39 +443,41 @@ class PackageConfig
 
   def cflags
     path_flags, other_flags = collect_cflags
-    (path_flags + other_flags).join(" ")
+    render_flags(path_flags + other_flags)
   end
 
   def cflags_only_I
-    collect_cflags[0].join(" ")
+    render_flags(collect_cflags[0])
   end
 
   def cflags_only_other
-    collect_cflags[1].join(" ")
+    render_flags(collect_cflags[1])
   end
 
   def libs
-    collect_libs.join(" ")
+    render_flags(collect_libs)
   end
 
   def libs_only_l
-    collect_libs.find_all do |arg|
+    flags = collect_libs.find_all do |arg|
       if @msvc_syntax
         arg.end_with?(".lib")
       else
         arg.start_with?("-l")
       end
-    end.join(" ")
+    end
+    render_flags(flags)
   end
 
   def libs_only_L
-    collect_libs.find_all do |arg|
+    flags = collect_libs.find_all do |arg|
       if @msvc_syntax
         arg.start_with?("/libpath:")
       else
         arg.start_with?("-L")
       end
-    end.join(" ")
+    end
+    render_flags(flags)
   end
 
   def version
@@ -643,7 +645,7 @@ class PackageConfig
   def split_lib_flags(libs_command_line)
     all_flags = {}
     flags = []
-    libs_command_line.gsub(/(-[Ll])\s+/, "\\1").split.each do |arg|
+    Shellwords.split(libs_command_line.gsub(/(-[Ll])\s+/, "\\1")).each do |arg|
       if /\A-[lL]/ =~ arg
         next if all_flags.key?(arg)
         all_flags[arg] = true
@@ -651,6 +653,10 @@ class PackageConfig
       flags << arg
     end
     flags
+  end
+
+  def render_flags(flags)
+    Shellwords.join(flags).gsub("\\=", "=")
   end
 
   IDENTIFIER_RE = /[a-zA-Z\d_\.]+/
