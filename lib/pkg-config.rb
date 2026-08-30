@@ -519,19 +519,25 @@ class PackageConfig
   end
 
   def collect_requires(&block)
-    dependencies = {}
-    pending_packages = yield(self).collect {|name| self.class.new(name, @options)}
+    dependencies = []
+    visited = {self => true}
+    pending_packages = yield(self).collect do |name|
+      [self.class.new(name, @options), false]
+    end
     until pending_packages.empty?
-      package = pending_packages.shift
-      next if dependencies.key?(package)
-      dependencies[package] = true
-      targets = yield(package)
-      targets.each do |name|
-        require_package = self.class.new(name, @options)
-        pending_packages.push(require_package)
+      package, expanded = pending_packages.pop
+      if expanded
+        dependencies << package
+        next
+      end
+      next if visited.key?(package)
+      visited[package] = true
+      pending_packages.push([package, true])
+      yield(package).each do |name|
+        pending_packages.push([self.class.new(name, @options), false])
       end
     end
-    dependencies.keys
+    dependencies.reverse
   end
 
   private
@@ -615,7 +621,7 @@ class PackageConfig
   end
 
   def collect_libs
-    target_packages = [*required_packages, self]
+    target_packages = [self, *required_packages]
     libs_set = []
     target_packages.each do |package|
       libs_set << package.declaration("Libs")
