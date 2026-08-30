@@ -422,11 +422,11 @@ class PackageConfig
   end
 
   def eql?(other)
-    other.is_a?(self.class) and @name == other.name
+    other.is_a?(self.class) and identity == other.__send__(:identity)
   end
 
   def hash
-    @name.hash
+    identity.hash
   end
 
   def exist?
@@ -514,6 +514,10 @@ class PackageConfig
   end
 
   protected
+  def identity
+    [@name, @pc_path]
+  end
+
   def path_position
     @path_position
   end
